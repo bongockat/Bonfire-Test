@@ -54,6 +54,12 @@ class ChunkCommand(
                 service.tryUnclaim(ctx.source.sender as Player); 1
             })
 
+            .then(Commands.literal("unclaimall").executes { ctx ->
+                val p = ctx.source.sender as? Player ?: return@executes 0
+                service.unclaimAllInWorld(p)
+                1
+            })
+
             .then(Commands.literal("escape").requires { (it.sender as? Player)?.let { p -> escape.isRestricted(p) } ?: false }.executes { ctx ->
                 escape.promptEscape(ctx.source.sender as Player); 1
             })

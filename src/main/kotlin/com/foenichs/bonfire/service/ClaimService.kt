@@ -103,6 +103,37 @@ class ClaimService(
     }
 
     /**
+     * Unclaim every claimed chunk in the player's current world.
+     */
+    fun unclaimAllInWorld(p: Player) {
+        val worldUuid = p.world.uid
+        val affectedClaims = registry.getAll().filter { claim -> claim.chunks.any { it.worldUuid == worldUuid } }
+        val unclaimedChunks = affectedClaims.sumOf { claim -> claim.chunks.count { it.worldUuid == worldUuid } }
+
+        affectedClaims.forEach { claim ->
+            val worldChunks = claim.chunks.filter { it.worldUuid == worldUuid }
+            if (worldChunks.size == claim.chunks.size) {
+                handleClaimRemoval(claim)
+            } else {
+                worldChunks.forEach { pos ->
+                    registry.removeChunk(claim, pos)
+                    db.removeChunk(claim.id!!, pos)
+                    db.removeFromQueue(pos.worldUuid, pos.chunkKey)
+                }
+                updateClaimMarkers(claim)
+                worldChunks.forEach { visualService.refreshChunk(it) }
+            }
+        }
+
+        if (unclaimedChunks == 0) {
+            msg.send(p, Component.text("There are no claimed chunks in this world."))
+        } else {
+            val chunkWord = if (unclaimedChunks == 1) "chunk" else "chunks"
+            msg.send(p, Component.text("Successfully unclaimed $unclaimedChunks $chunkWord in this world."))
+        }
+    }
+
+    /**
      * Set a new owner for a claim (OP-only)
      */
     fun adminSetOwner(p: Player, newOwnerName: String) {
